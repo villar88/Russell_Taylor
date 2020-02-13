@@ -1,0 +1,23 @@
+public function paypalGetDescription(){
+
+        $this->driver->wait(30, 1000)->until(
+            WebDriverExpectedCondition::visibilityOfElementLocated(WebDriverBy::id ('email'))
+        );
+        $url = $this->driver->getCurrentURL();
+        preg_match("/token=(.*)/", $url, $res);
+        $token = $res[1];
+        
+        $this->driver->get("https://www.sandbox.paypal.com/webapps/hermes?flow=1-P&ulReturn=true&token=$token&country.x=US&locale.x=en_US#/checkout/login");
+
+        $this->driver->wait(30, 1000)->until(
+            WebDriverExpectedCondition::visibilityOfElementLocated(WebDriverBy::cssSelector('div#header.merchantHeader'))
+        );
+        sleep(10);
+        $paypal_desc = $this->driver->findElement(WebDriverBy::id('transctionCartDetails'))->getText();
+        if ($paypal_desc==''){
+            TestingBrowser::clickButton(WebDriverBy::cssSelector('span#transactionCart span'));
+            $paypal_desc = $this->driver->findElement(WebDriverBy::id('transctionCartDetails'))->getText();
+        }
+        return $paypal_desc;
+
+    }

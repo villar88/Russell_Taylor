@@ -1,0 +1,69 @@
+/////////////////////////////////////////////////////
+// Review if is over a page and click a button.
+///////////////////////////////////////////////////
+
+
+function reviseEbay(newprice, quantity) {
+
+    var messagereturn = { revise_ebay: false};
+
+    var url = (window.location != window.parent.location) ?
+                          window.parent.location.href : window.location.href;
+
+    if((url.indexOf("/bulksell.ebay.com") != -1) && (url.indexOf("ReviseItem&ReturnURL") != -1)) {
+
+        var new_destination_price = document.getElementById("binPrice");
+        var quantity = document.getElementById("quantity");
+        var clickUpdateListing =  document.querySelector("#actionbar > input:nth-child(2)");
+
+        if ( clickUpdateListing != null ){
+            new_destination_price.value = newprice;
+            quantity.value = quantity;
+            clickUpdateListing.click();
+            messagereturn.revise_ebay = true;
+
+            let messageConfirmation = document.getElementById('success_msg');
+            const waitModal = setInterval(() => {
+
+                let modalStyle = messageConfirmation.getAttribute('style');
+                if( modalStyle ){
+                    messagereturn.revise_ebay = true;
+                    clearInterval(waitModal);
+                }
+            }, 2000);
+        }
+    }
+
+   return messagereturn;
+}
+
+
+
+
+
+//////////////////////////////////////////////////////////
+// check a html select and if the option is 'FixedPrice' do something.
+/////////////////////////////////////////////////////////
+let format = ' var format = document.getElementById("format");'
+                    +' if( format ){'
+                    +'  format = format.options;'
+                    +'  var formatValue = "";'
+                    +'  var foundFormat = 0;'
+                    +'  if( format.length > 0 ){'
+                    +'      for( var i = 0; i < format.length; i++ ){'
+                    +'          if( format[i].value == "FixedPrice" && foundFormat == 0 ){'
+                    +'              formatValue = "FixedPrice";'
+                    +'              document.getElementById("format").value = formatValue;'
+                    +'              foundFormat = 1;'
+                    +'          }else if( format[i].value == "FixedPrice" && foundFormat == 0 ){'
+                    +'              formatValue = "StoresFixedPrice";'
+                    +'              document.getElementById("format").value = formatValue;'
+                    +'              foundFormat = 1;'
+                    +'          }'
+                    +'      }'
+                    +'  }'
+                    +'  if( foundFormat == 1 ){'
+                    +'      document.getElementById("format").dispatchEvent(new Event("change"));'
+                    +'  }'
+                    +' }';
+        chrome.tabs.executeScript(null, { code: format });

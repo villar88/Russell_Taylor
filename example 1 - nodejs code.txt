@@ -1,0 +1,125 @@
+////////////////////////////////////////////////
+//This is the first file where i made scraping. In this file i make the process for download a csv file with products for update the database.
+////////////////////////////////////////////////
+
+
+async function downloadFile() {
+  let driver;
+  const browser = Browser();
+  let fileName = "";
+  let downloadsDir = process.env.DOWNLOADS_PATH;
+  let err;
+  try {
+    if (!process.env.DOWNLOADS_PATH) {
+      downloadsDir = tmp.dirSync().name;
+    }
+    logger.info(`[Shipstation] Using ${downloadsDir} for store temporal files.`);
+
+    driver = await browser
+      .getFirefoxInstance({
+        headless: true,
+        downloadDir: downloadsDir,
+        neverAskToDownload: 'application/zip, application/octet-stream, binary/octet-stream, application/binary, application/x-unknown, **/**',
+        firefoxPath: process.env.FIREFOX_PATH
+      });
+    logger.info(`[Shipstation] Opened browser.`);
+
+    let url = 'https://ss7.shipstation.com/';
+    await driver.get(url);
+    logger.info(`[Shipstation] Opened ${url}`);
+    await sleep(1000);
+
+    logger.info(`[Shipstation] Logging in.`);
+    const usernameInput = webdriver.By.id('username');
+    await driver.wait(webdriver.until.elementLocated(usernameInput), timeout);
+    await driver.findElement(usernameInput)
+      .sendKeys(process.env.SHIPSTATION_USER);
+    
+    const passwordInput = webdriver.By.id('password');
+    await driver.findElement(passwordInput)
+      .sendKeys(process.env.SHIPSTATION_PASSWORD);
+    await sleep(1000);
+
+    const logginButton = webdriver.By.id('btn-login');
+    await driver.findElement(logginButton)
+      .click();
+    logger.info(`[Shipstation] Logged in.`);
+    await waitLoad(driver);
+
+    logger.info(`[Shipstation] Opening Products.`);
+    const productsLink = webdriver.By.xpath('//a[text()="Products"]');
+    await driver.wait(webdriver.until.elementLocated(productsLink), timeout);
+    const productsLinkEl = await driver.findElement(productsLink);
+    await driver.wait(webdriver.until.elementIsVisible(productsLinkEl), timeout);
+    await productsLinkEl.click();
+    await waitLoad(driver);
+    logger.info(`[Shipstation] Opened Products.`);
+
+    logger.info(`[Shipstation] Opening Inventory.`);
+    const inventoryLink = webdriver.By.xpath('//a[@href="#/products/inventory"]');
+    await driver.wait(webdriver.until.elementLocated(inventoryLink), timeout);
+    const inventoryLinkEl = await driver.findElement(inventoryLink);
+    await driver.wait(webdriver.until.elementIsVisible(inventoryLinkEl), timeout);
+    await inventoryLinkEl.click();
+    await waitLoad(driver);
+    logger.info(`[Shipstation] Opened Inventory.`);
+
+    // wait to render.
+		await sleep(3000);
+
+		const invExportLink = webdriver.By.xpath('//a[@class="btn btn-export track-InvExport"]');
+    await driver.wait(webdriver.until.elementLocated(invExportLink), timeout);
+    const invExportLinkEl = await driver.findElement(invExportLink);
+    await driver.wait(webdriver.until.elementIsVisible(invExportLinkEl), timeout);
+    await invExportLinkEl.click();
+		await sleep(1000);
+
+    const modal = webdriver.By.xpath('//div[normalize-space(@class)="modal-dialog"]');
+    const modalEl = await driver.findElement(modal);
+
+		const allRecordsRadio = webdriver.By.xpath('//input[@name="allrecords"]');
+    await driver.wait(webdriver.until.elementLocated(allRecordsRadio), timeout);
+    await driver.findElement(allRecordsRadio).click();
+		await sleep(1000);
+
+    const inventoryExportNowButton = webdriver.By.xpath('//button[text()="Export Now"]');
+    await driver.findElement(inventoryExportNowButton).click();
+    logger.info(`[Shipstation] Generated inventory file.`);
+		await sleep(1000);
+
+    try {
+      if(await modalEl.isDisplayed()) {
+        await driver.wait(webdriver.until.elementIsNotVisible(modalEl), timeout);
+      }
+    } catch(modalErr) {
+      // not important to catch.
+      logger.debug(modalErr);
+    }
+
+    const generatedInventoryDownloadLink = webdriver.By.xpath('//a[contains(text(), "Click here to view the inventory export file")]');
+    await driver.wait(webdriver.until.elementLocated(invExportLink), timeout);
+    const generatedInventoryDownloadLinkEl = await driver.findElement(generatedInventoryDownloadLink);
+    await driver.wait(webdriver.until.elementIsVisible(generatedInventoryDownloadLinkEl), timeout);
+
+    const inventoryFileLink = await generatedInventoryDownloadLinkEl.getAttribute('href');
+    logger.info(`[Shipstation] Downloading ${inventoryFileLink}`);
+    await generatedInventoryDownloadLinkEl.click();
+    logger.info(`[Shipstation] Started download.`);
+
+    fileName = inventoryFileLink.match(/([\-0-9a-fA-F]+\.zip)/)[0];
+    let inventoryFile = path.join(downloadsDir, fileName);
+    await browser.waitDownload(inventoryFile);
+
+  } catch(err2) {
+    err = err2;
+  }
+
+  if(driver) {
+    driver.quit();
+    logger.info(`[Shipstation] Closed browser.`);
+  }
+  if(err) {
+    throw err;
+  }
+  return {downloadsDir, fileName};
+}
